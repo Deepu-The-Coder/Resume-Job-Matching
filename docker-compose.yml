@@ -1,0 +1,143 @@
+services:
+  nginx:
+    build:
+      context: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      app:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: ./backend
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HTTP_BODY_LIMIT: ${HTTP_BODY_LIMIT:-1mb}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-5242880}
+      DB_MAX_RETRIES: ${DB_MAX_RETRIES:-5}
+      DB_INITIAL_RETRY_DELAY_MS: ${DB_INITIAL_RETRY_DELAY_MS:-2000}
+      MONGO_URI: mongodb://mongo:27017/resumematcher
+      REDIS_URL: redis://redis:6379
+      EMBEDDING_API_URL: ${EMBEDDING_API_URL:-http://host.docker.internal:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash-lite}
+      EMBEDDING_MAX_INPUT_CHARACTERS: ${EMBEDDING_MAX_INPUT_CHARACTERS:-16000}
+      EMBEDDING_MAX_RETRIES: ${EMBEDDING_MAX_RETRIES:-2}
+      EMBEDDING_RETRY_BASE_MS: ${EMBEDDING_RETRY_BASE_MS:-1000}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_REQUEST_TIMEOUT_MS: ${LLM_REQUEST_TIMEOUT_MS:-15000}
+      LLM_RETRY_BASE_MS: ${LLM_RETRY_BASE_MS:-1000}
+      CACHE_TTL_SECONDS: ${CACHE_TTL_SECONDS:-86400}
+      MATCHING_DEFAULT_K: ${MATCHING_DEFAULT_K:-10}
+      EXPLANATION_DEFAULT_TOP: ${EXPLANATION_DEFAULT_TOP:-3}
+      SEMANTIC_CACHE_THRESHOLD: ${SEMANTIC_CACHE_THRESHOLD:-0.95}
+      CHEAP_RATE_LIMIT_CAPACITY: ${CHEAP_RATE_LIMIT_CAPACITY:-60}
+      CHEAP_RATE_LIMIT_REFILL_PER_SECOND: ${CHEAP_RATE_LIMIT_REFILL_PER_SECOND:-1}
+      AI_RATE_LIMIT_CAPACITY: ${AI_RATE_LIMIT_CAPACITY:-10}
+      AI_RATE_LIMIT_REFILL_PER_SECOND: ${AI_RATE_LIMIT_REFILL_PER_SECOND:-0.1}
+      LLM_BREAKER_FAILURE_THRESHOLD: ${LLM_BREAKER_FAILURE_THRESHOLD:-50}
+      LLM_BREAKER_ROLLING_WINDOW_MS: ${LLM_BREAKER_ROLLING_WINDOW_MS:-10000}
+      LLM_BREAKER_RESET_TIMEOUT_MS: ${LLM_BREAKER_RESET_TIMEOUT_MS:-10000}
+      LLM_FORCE_FAILURE: ${LLM_FORCE_FAILURE:-false}
+      BULK_EMBED_CONCURRENCY: ${BULK_EMBED_CONCURRENCY:-4}
+      QUEUE_JOB_ATTEMPTS: ${QUEUE_JOB_ATTEMPTS:-3}
+      QUEUE_BACKOFF_MS: ${QUEUE_BACKOFF_MS:-1000}
+      QUEUE_REMOVE_ON_COMPLETE_AGE_SECONDS: ${QUEUE_REMOVE_ON_COMPLETE_AGE_SECONDS:-86400}
+      QUEUE_REMOVE_ON_COMPLETE_COUNT: ${QUEUE_REMOVE_ON_COMPLETE_COUNT:-1000}
+      CACHE_MAX_RECENT_ENTRIES: ${CACHE_MAX_RECENT_ENTRIES:-200}
+      LLM_RESUME_EXCERPT_CHARACTERS: ${LLM_RESUME_EXCERPT_CHARACTERS:-1600}
+      LLM_JOB_EXCERPT_CHARACTERS: ${LLM_JOB_EXCERPT_CHARACTERS:-1600}
+    expose:
+      - "3000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+
+  worker:
+    build:
+      context: ./backend
+    command: ["node", "src/workers/embeddingWorker.js"]
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongo:27017/resumematcher
+      REDIS_URL: redis://redis:6379
+      DB_MAX_RETRIES: ${DB_MAX_RETRIES:-5}
+      DB_INITIAL_RETRY_DELAY_MS: ${DB_INITIAL_RETRY_DELAY_MS:-2000}
+      EMBEDDING_API_URL: ${EMBEDDING_API_URL:-http://host.docker.internal:11434}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-embeddinggemma}
+      EMBEDDING_MAX_INPUT_CHARACTERS: ${EMBEDDING_MAX_INPUT_CHARACTERS:-16000}
+      EMBEDDING_MAX_RETRIES: ${EMBEDDING_MAX_RETRIES:-2}
+      EMBEDDING_RETRY_BASE_MS: ${EMBEDDING_RETRY_BASE_MS:-1000}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash-lite}
+      LLM_MAX_RETRIES: ${LLM_MAX_RETRIES:-2}
+      LLM_REQUEST_TIMEOUT_MS: ${LLM_REQUEST_TIMEOUT_MS:-15000}
+      LLM_RETRY_BASE_MS: ${LLM_RETRY_BASE_MS:-1000}
+      BULK_EMBED_CONCURRENCY: ${BULK_EMBED_CONCURRENCY:-4}
+      QUEUE_JOB_ATTEMPTS: ${QUEUE_JOB_ATTEMPTS:-3}
+      QUEUE_BACKOFF_MS: ${QUEUE_BACKOFF_MS:-1000}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  redis_data:
+  mongo_data:
