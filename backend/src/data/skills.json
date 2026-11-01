@@ -1,0 +1,22 @@
+[
+  "javascript", "typescript", "python", "java", "c++", "c#", "go", "rust", "ruby", "php",
+  "swift", "kotlin", "scala", "r", "matlab", "bash", "shell", "powershell", "perl", "lua",
+  "react", "vue", "angular", "svelte", "nextjs", "nuxtjs", "redux", "mobx", "graphql", "rest",
+  "node.js", "express", "fastapi", "django", "flask", "spring", "laravel", "rails", "asp.net",
+  "mongodb", "postgresql", "mysql", "sqlite", "redis", "elasticsearch", "cassandra", "dynamodb",
+  "firebase", "supabase", "prisma", "mongoose", "sequelize", "typeorm", "sqlalchemy",
+  "docker", "kubernetes", "terraform", "ansible", "helm", "nginx", "apache", "linux",
+  "aws", "gcp", "azure", "lambda", "ec2", "s3", "cloudformation", "vercel", "netlify",
+  "git", "github", "gitlab", "bitbucket", "jira", "confluence", "agile", "scrum",
+  "ci/cd", "jenkins", "github actions", "circleci", "travis ci", "argocd",
+  "machine learning", "deep learning", "tensorflow", "pytorch", "keras", "scikit-learn",
+  "pandas", "numpy", "matplotlib", "jupyter", "openai", "langchain", "huggingface",
+  "llm", "embeddings", "rag", "vector database", "pinecone", "weaviate", "qdrant",
+  "html", "css", "sass", "tailwindcss", "webpack", "vite", "esbuild", "rollup",
+  "jest", "vitest", "pytest", "mocha", "cypress", "playwright", "selenium",
+  "rabbitmq", "kafka", "bullmq", "celery", "websocket", "grpc", "protobuf",
+  "oauth", "jwt", "openid connect", "saml", "tls", "ssl", "cryptography",
+  "microservices", "serverless", "event-driven", "api design", "system design",
+  "data structures", "algorithms", "sql", "nosql", "caching", "load balancing",
+  "monitoring", "observability", "prometheus", "grafana", "datadog", "pino", "winston"
+]
